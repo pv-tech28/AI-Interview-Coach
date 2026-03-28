@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Interview Coach | NextGen Coders</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <div class="logo">
+                <i class="fas fa-robot"></i>
+                <h1>NextGen <span>Interview Coach</span></h1>
+            </div>
+            <p class="tagline">Simulate real-world interviews with AI-powered multi-agent feedback</p>
+        </header>
+
+        <main class="app-main">
+            <!-- Setup Section -->
+            <section id="setup-section" class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-id-card"></i> Interview Preparation</h2>
+                </div>
+                <div class="card-body">
+                    <div class="input-group">
+                        <label for="companyInput">Target Company</label>
+                        <input type="text" id="companyInput" placeholder="e.g. Google, Amazon, Microsoft">
+                    </div>
+                    <div class="input-group">
+                        <label for="resumeInput">Upload Resume (PDF/TXT)</label>
+                        <div class="file-upload">
+                            <input type="file" id="resumeInput" accept=".pdf,.txt">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <span>Drag or click to upload resume</span>
+                        </div>
+                    </div>
+                    <button id="startBtn" class="primary-btn">Start My Interview</button>
+                </div>
+            </section>
+
+            <!-- Interview Area (Hidden by default) -->
+            <section id="interview-section" class="hidden">
+                <div class="interview-layout">
+                    <!-- Chat Interface -->
+                    <div class="chat-card card">
+                        <div class="card-header">
+                            <h2><i class="fas fa-comments"></i> Live Interview</h2>
+                            <div id="connection-status" class="status-indicator">
+                                <span class="dot"></span> Connected
+                            </div>
+                        </div>
+                        <div id="chat-box" class="chat-box">
+                            <!-- Messages will appear here -->
+                        </div>
+                        <div class="chat-controls">
+                            <div id="transcript-area" class="transcript-preview hidden">
+                                <span>Listening...</span>
+                            </div>
+                            <div class="button-row">
+                                <button id="recordBtn" class="record-btn">
+                                    <i class="fas fa-microphone"></i>
+                                    <span>Hold to Speak</span>
+                                </button>
+                                <button id="sendBtn" class="send-btn hidden">
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Feedback Sidebar -->
+                    <aside class="feedback-sidebar">
+                        <div class="card feedback-card">
+                            <h3><i class="fas fa-chart-line"></i> Real-time Feedback</h3>
+                            <div class="feedback-metrics">
+                                <div class="metric">
+                                    <span class="label">Confidence Score</span>
+                                    <div class="progress-bar">
+                                        <div id="score-fill" class="fill" style="width: 0%"></div>
+                                    </div>
+                                    <span id="score-text" class="value">0%</span>
+                                </div>
+                            </div>
+                            <div id="feedback-content" class="feedback-list">
+                                <p class="placeholder">Complete your first answer to see evaluation results.</p>
+                            </div>
+                        </div>
+                    </aside>
+                </div>
+            </section>
+        </main>
+
+        <footer class="app-footer">
+            <p>&copy; 2024 NextGen Coders | Built with Trae AI Multi-Agent System</p>
+        </footer>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
