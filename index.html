@@ -29,11 +29,11 @@
                         <input type="text" id="companyInput" placeholder="e.g. Google, Amazon, Microsoft">
                     </div>
                     <div class="input-group">
-                        <label for="resumeInput">Upload Resume (PDF/TXT)</label>
-                        <div class="file-upload">
-                            <input type="file" id="resumeInput" accept=".pdf,.txt">
+                        <label for="resumeInput">Upload Resume (PDF Only)</label>
+                        <div class="file-upload" id="drop-zone">
+                            <input type="file" id="resumeInput" accept=".pdf">
                             <i class="fas fa-cloud-upload-alt"></i>
-                            <span>Drag or click to upload resume</span>
+                            <span id="file-name-display">Drag or click to upload resume</span>
                         </div>
                     </div>
                     <button id="startBtn" class="primary-btn">Start My Interview</button>
@@ -55,16 +55,25 @@
                             <!-- Messages will appear here -->
                         </div>
                         <div class="chat-controls">
-                            <div id="transcript-area" class="transcript-preview hidden">
-                                <span>Listening...</span>
+                            <div class="input-container">
+                                <p id="input-instruction" class="input-instruction">Please speak first, then you can edit your answer</p>
+                                <textarea id="answerInput" placeholder="Speak to start..." rows="3" readonly></textarea>
+                                <div id="transcript-preview" class="transcript-preview hidden">
+                                    <span>Listening...</span>
+                                </div>
                             </div>
                             <div class="button-row">
                                 <button id="recordBtn" class="record-btn">
                                     <i class="fas fa-microphone"></i>
                                     <span>Hold to Speak</span>
                                 </button>
-                                <button id="sendBtn" class="send-btn hidden">
+                                <button id="editBtn" class="secondary-btn hidden">
+                                    <i class="fas fa-edit"></i>
+                                    <span>Edit Answer</span>
+                                </button>
+                                <button id="submitBtn" class="primary-btn submit-btn hidden">
                                     <i class="fas fa-paper-plane"></i>
+                                    <span>Submit Answer</span>
                                 </button>
                             </div>
                         </div>

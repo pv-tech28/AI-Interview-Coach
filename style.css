@@ -225,14 +225,73 @@ input[type="text"]:focus {
     background: var(--card-bg);
 }
 
-.transcript-preview {
-    background: var(--bg-dark);
-    padding: 0.75rem;
-    border-radius: 6px;
+.input-container {
+    position: relative;
     margin-bottom: 1rem;
+}
+
+.input-instruction {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+    font-style: italic;
+}
+
+#answerInput {
+    width: 100%;
+    background: var(--bg-dark);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    padding: 1rem;
+    font-size: 1rem;
+    font-family: inherit;
+    resize: none;
+    transition: all 0.2s;
+}
+
+#answerInput[readonly] {
+    opacity: 0.7;
+    cursor: not-allowed;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+#answerInput:focus:not([readonly]) {
+    outline: none;
+    border-color: var(--accent-color);
+}
+
+.secondary-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: var(--bot-msg-bg);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background 0.2s;
+}
+
+.secondary-btn:hover {
+    background: var(--border-color);
+}
+
+.transcript-preview {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    background: rgba(88, 166, 255, 0.1);
+    padding: 4px 10px;
+    border-radius: 4px;
     color: var(--accent-color);
     font-style: italic;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
+    pointer-events: none;
 }
 
 .button-row {
@@ -256,21 +315,12 @@ input[type="text"]:focus {
     font-weight: 600;
 }
 
-.record-btn.recording {
-    animation: pulse 1.5s infinite;
-}
-
-.send-btn {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    background: var(--accent-color);
-    color: white;
-    border: none;
-    cursor: pointer;
+.submit-btn {
+    flex: 1.5;
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 0.75rem;
 }
 
 .status-indicator {
@@ -349,13 +399,122 @@ input[type="text"]:focus {
 }
 
 .feedback-item h4 {
-    font-size: 0.9rem;
+    font-size: 0.95rem;
     color: var(--accent-color);
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.grammar-pair {
+    margin-bottom: 0.75rem;
+    font-size: 0.85rem;
+}
+
+.grammar-pair p {
     margin-bottom: 0.25rem;
 }
 
-.feedback-item p {
+.incorrect {
+    color: var(--error-color);
+    text-decoration: line-through;
+    opacity: 0.8;
+}
+
+.corrected {
+    color: var(--success-color);
+    font-weight: 500;
+}
+
+.reason {
+    color: var(--text-secondary);
+    font-style: italic;
+    margin-top: 0.2rem;
+    padding-left: 0.5rem;
+    border-left: 2px solid var(--border-color);
+}
+
+.grammar-pair span {
+    font-weight: bold;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    margin-right: 0.5rem;
+}
+
+.rewrite-text {
+    font-size: 0.9rem;
+    font-style: italic;
+    color: var(--text-primary);
+    background: rgba(88, 166, 255, 0.05);
+    padding: 0.75rem;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+}
+
+.metric-item {
+    margin-bottom: 0.75rem;
+}
+
+.metric-label {
+    display: block;
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.2rem;
+}
+
+.metric-item p {
     font-size: 0.85rem;
+    color: var(--text-primary);
+}
+
+.tip-feedback {
+    border-left-color: var(--success-color);
+}
+
+.tip-feedback h4 {
+    color: var(--success-color);
+}
+
+.suggestion-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.suggestion-list li {
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+    padding-left: 1.25rem;
+    position: relative;
+}
+
+.suggestion-list li::before {
+    content: "→";
+    position: absolute;
+    left: 0;
+    color: var(--success-color);
+    font-weight: bold;
+}
+
+.mistake-number {
+    font-weight: bold;
+    color: var(--accent-color);
+    font-size: 0.8rem;
+    margin-bottom: 0.25rem;
+    text-transform: uppercase;
+}
+
+.score-reason-feedback {
+    border-left-color: var(--accent-color);
+    background: rgba(88, 166, 255, 0.05);
+}
+
+.score-reason-feedback p {
+    font-size: 0.9rem;
+    color: var(--text-primary);
 }
 
 .placeholder {
@@ -369,6 +528,109 @@ input[type="text"]:focus {
     0% { opacity: 1; }
     50% { opacity: 0.6; }
     100% { opacity: 1; }
+}
+
+/* Elite Coach Feedback Styles */
+.relevance-feedback {
+    border-left-color: var(--accent-color);
+    background: rgba(88, 166, 255, 0.05);
+}
+
+.audit-feedback {
+    border-left-color: var(--error-color);
+}
+
+.audit-section {
+    margin-top: 1rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.audit-section h5 {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.05em;
+}
+
+.filler-info {
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    margin-bottom: 0.4rem;
+    padding: 0.4rem;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 4px;
+}
+
+.model-feedback {
+    border-left-color: var(--success-color);
+}
+
+.model-answer-box {
+    background: rgba(35, 134, 54, 0.05);
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid rgba(35, 134, 54, 0.2);
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: var(--text-primary);
+}
+
+.model-text {
+    font-style: normal;
+}
+
+.context-feedback {
+    border-left-color: #f1e05a; /* Warning/Gold color */
+}
+
+.context-text {
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+
+.feedback-card {
+    height: 100%;
+    padding: 1.5rem;
+    overflow-y: auto; /* Ensure scrollable */
+}
+
+.weak-word-item {
+    margin-bottom: 0.75rem;
+    padding: 0.5rem;
+    background: rgba(218, 54, 51, 0.05);
+    border-radius: 4px;
+    border: 1px solid rgba(218, 54, 51, 0.1);
+}
+
+.weak-word {
+    font-size: 0.85rem;
+    color: var(--error-color);
+    margin-bottom: 0.2rem;
+}
+
+.synonyms {
+    font-size: 0.8rem;
+    color: var(--success-color);
+}
+
+.synonyms em {
+    font-style: normal;
+    background: rgba(35, 134, 54, 0.1);
+    padding: 2px 4px;
+    border-radius: 3px;
+    margin: 0 2px;
+}
+
+.score-reason-feedback {
+    border-left-color: #ff9d00;
+    background: rgba(255, 157, 0, 0.05);
+}
+
+.score-reason-feedback h4 {
+    color: #ff9d00;
 }
 
 .app-footer {
