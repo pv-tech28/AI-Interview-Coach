@@ -1,4 +1,4 @@
-// DOM Elements
+
 const setupSection = document.getElementById('setup-section');
 const interviewSection = document.getElementById('interview-section');
 const startBtn = document.getElementById('startBtn');
@@ -18,7 +18,7 @@ let isRecording = false;
 
 // Initialize WebSocket
 function initWebSocket() {
-    socket = new WebSocket(`ws://${window.location.hostname}:3000`);
+    socket = new WebSocket(`ws://${window.location.hostname}:3005`);
 
     socket.onopen = () => {
         console.log('Connected to server');
@@ -134,19 +134,53 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     recognition.onerror = (event) => {
         console.error('Speech recognition error:', event.error);
         stopRecording();
+        
+        let errorMessage = 'Voice error. Please try again.';
+        if (event.error === 'not-allowed') {
+            errorMessage = 'Microphone access denied. Please allow it in browser settings.';
+        } else if (event.error === 'no-speech') {
+            errorMessage = 'No speech detected. Please speak into the mic.';
+        } else if (event.error === 'network') {
+            errorMessage = 'Network error during speech recognition.';
+        }
+        
+        transcriptArea.innerText = errorMessage;
+        transcriptArea.classList.remove('hidden');
+        transcriptArea.style.color = '#da3633'; // Error color
+        
+        setTimeout(() => {
+            if (transcriptArea.innerText === errorMessage) {
+                transcriptArea.classList.add('hidden');
+                transcriptArea.style.color = ''; // Reset color
+            }
+        }, 4000);
     };
 }
 
 function startRecording() {
-    isRecording = true;
-    recordBtn.classList.add('recording');
-    recordBtn.querySelector('span').innerText = 'Recording...';
-    transcriptArea.innerText = 'Listening...';
-    transcriptArea.classList.remove('hidden');
-    recognition.start();
+    if (!recognition) {
+        alert("Speech recognition is not supported in this browser. Please use Chrome or Edge.");
+        return;
+    }
+    
+    // Clear previous error state
+    transcriptArea.style.color = '';
+    
+    try {
+        isRecording = true;
+        recordBtn.classList.add('recording');
+        recordBtn.querySelector('span').innerText = 'Recording...';
+        transcriptArea.innerText = 'Listening...';
+        transcriptArea.classList.remove('hidden');
+        recognition.start();
+    } catch (err) {
+        console.error("Start recording failed:", err);
+        stopRecording();
+    }
 }
 
 function stopRecording() {
+    if (!recognition) return;
     isRecording = false;
     recordBtn.classList.remove('recording');
     recordBtn.querySelector('span').innerText = 'Hold to Speak';

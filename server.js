@@ -2,6 +2,7 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const path = require('path');
+const mongoose = require('mongoose');
 
 const app = express();
 const server = http.createServer(app);
@@ -9,140 +10,153 @@ const wss = new WebSocket.Server({ server });
 
 const PORT = process.env.PORT || 3000;
 
-// Serve static files from the root directory
+// Serve static files (HTML, CSS, JS) from the root directory [cite: 35, 38]
 app.use(express.static(path.join(__dirname)));
 
-// --- Database Integration (Placeholder) ---
-/*
-const mongoose = require('mongoose');
-mongoose.connect('mongodb://localhost/interview_coach', { useNewUrlParser: true, useUnifiedTopology: true });
-// or Firebase integration
-const admin = require('firebase-admin');
-admin.initializeApp({ ... });
-*/
+// --- 1. MONGODB CONNECTION [cite: 42] ---
+// Connects to a local database named 'interview_coach'
+const connectDB = async () => {
+    try {
+        await mongoose.connect('mongodb://127.0.0.1:27017/interview_coach');
+        console.log("✅ MongoDB Connected: NextGen Database Active");
+    } catch (err) {
+        console.error("❌ MongoDB Connection Error (Ensure MongoDB is running!):", err.message);
+        // We'll still let the server run, but DB features will fail gracefully
+    }
+};
+connectDB();
 
-// --- AI Agents (Mock Multi-Agent System) ---
+// --- 2. DATABASE SCHEMA [cite: 42] ---
+// Defines how student interview data is stored
+const interviewSchema = new mongoose.Schema({
+    company: String,
+    resumeName: String,
+    date: { type: Date, default: Date.now },
+    history: [{
+        question: String,
+        answer: String,
+        score: Number,
+        evaluation: String,
+        improvement: String
+    }]
+});
 
-/**
- * Agent 1: Question Generator
- * Generates interview questions based on company and resume.
- */
+const InterviewSession = mongoose.model('InterviewSession', interviewSchema);
+
+// --- 3. AI AGENTS (MOCK MULTI-AGENT SYSTEM) [cite: 16, 28, 41] ---
+
 const QuestionGeneratorAgent = {
     generate: (company, resumeName) => {
         const questions = [
-            `Tell me about a challenging project you've worked on that would be relevant to ${company}.`,
-            `How do your skills listed in ${resumeName} align with the core values of ${company}?`,
-            `What is your most significant technical achievement mentioned in your resume?`,
-            `Why do you want to work at ${company} specifically?`,
-            `Describe a time you had to learn a new technology quickly for a project.`
+            `How do your skills in ${resumeName} make you a good fit for ${company}?`,
+            `Tell me about a technical challenge you solved, as mentioned in your resume.`,
+            `What draws you to the culture and mission of ${company}?`,
+            `Describe a time you had to learn a new tool quickly for a project.`
         ];
         return questions[Math.floor(Math.random() * questions.length)];
     }
 };
 
-/**
- * Agent 2: Evaluation Agent
- * Evaluates the answer for content, grammar, and provides a score.
- */
 const EvaluationAgent = {
     evaluate: (answer) => {
-        const length = answer.length;
-        let score = 50; // Base score
-        let feedback = "";
-
-        if (length > 100) {
-            score += 30;
-            feedback = "Excellent depth in your response. Grammar is solid.";
-        } else if (length > 50) {
-            score += 15;
-            feedback = "Good answer, but could be more detailed. Minor grammatical improvements possible.";
-        } else {
-            score -= 10;
-            feedback = "The answer is a bit too short. Try to elaborate more on your experiences.";
-        }
-
-        return { score, feedback };
+        const score = answer.length > 50 ? Math.floor(Math.random() * 20) + 75 : 50;
+        return { 
+            score, 
+            feedback: score > 70 ? "Detailed and clear response." : "Try to add more technical details." 
+        };
     }
 };
 
-/**
- * Agent 3: Improvement Agent
- * Provides tips on confidence and communication style.
- */
 const ImprovementAgent = {
-    getTips: (answer) => {
-        const tips = [
-            "Try to use the STAR method (Situation, Task, Action, Result) for better structure.",
-            "Maintain a steady pace; you're doing great with your vocal clarity!",
-            "Consider adding more metrics or specific outcomes to your examples.",
-            "Your confidence sounds good, keep that energy throughout the interview.",
-            "Try to avoid filler words like 'um' or 'ah' to sound more professional."
-        ];
-        return tips[Math.floor(Math.random() * tips.length)];
-    }
+    getTips: () => "Try using the STAR method (Situation, Task, Action, Result) for better structure."
 };
 
-// --- WebSocket Logic ---
+// --- 4. WEBSOCKET LOGIC (DATA FLOW) [cite: 36, 43, 44] ---
 
 wss.on('connection', (ws) => {
-    console.log('New client connected');
+    console.log('New student connected to session');
+    
     let userContext = {
         company: '',
         resumeName: '',
-        currentQuestion: ''
+        currentQuestion: '',
+        dbRecordId: null // To track the MongoDB document
     };
 
-    ws.on('message', (message) => {
-        const data = JSON.parse(message);
+    ws.on('message', async (message) => {
+        try {
+            const data = JSON.parse(message);
 
-        switch (data.type) {
-            case 'setup':
-                userContext.company = data.company;
-                userContext.resumeName = data.resumeName;
-                
-                // Agent 1 kicks off the interview
-                const initialQuestion = QuestionGeneratorAgent.generate(userContext.company, userContext.resumeName);
-                userContext.currentQuestion = initialQuestion;
-                
-                ws.send(JSON.stringify({
-                    type: 'question',
-                    text: initialQuestion
-                }));
-                break;
+            switch (data.type) {
+                case 'setup':
+                    // Initialize context and create a new Database record [cite: 25, 42]
+                    userContext.company = data.company || 'Unknown Company';
+                    userContext.resumeName = data.resumeName || 'Unknown Resume';
 
-            case 'answer':
-                // Agent 2 evaluates
-                const evaluation = EvaluationAgent.evaluate(data.text);
-                
-                // Agent 3 provides tips
-                const tips = ImprovementAgent.getTips(data.text);
+                    try {
+                        const newSession = new InterviewSession({
+                            company: userContext.company,
+                            resumeName: userContext.resumeName
+                        });
+                        const savedSession = await newSession.save();
+                        userContext.dbRecordId = savedSession._id;
+                        console.log(`📝 Session record created: ${userContext.dbRecordId}`);
+                    } catch (dbErr) {
+                        console.error("⚠️ Failed to save session to MongoDB:", dbErr.message);
+                        // Still allow interview to proceed without DB tracking
+                    }
 
-                // Send feedback back to client
-                ws.send(JSON.stringify({
-                    type: 'feedback',
-                    score: evaluation.score,
-                    evaluation: evaluation.feedback,
-                    improvement: tips
-                }));
+                    // Agent 1 generates initial question [cite: 28]
+                    const initialQ = QuestionGeneratorAgent.generate(userContext.company, userContext.resumeName);
+                    userContext.currentQuestion = initialQ;
+                    
+                    ws.send(JSON.stringify({ type: 'question', text: initialQ }));
+                    break;
 
-                // Agent 1 generates next question after a short delay
-                setTimeout(() => {
-                    const nextQuestion = QuestionGeneratorAgent.generate(userContext.company, userContext.resumeName);
-                    userContext.currentQuestion = nextQuestion;
+                case 'answer':
+                    // Agent 2 & 3 evaluate the answer [cite: 26, 27, 28]
+                    const evaluation = EvaluationAgent.evaluate(data.text);
+                    const tips = ImprovementAgent.getTips();
+
+                    // SAVE TO DATABASE if we have a record ID [cite: 42]
+                    if (userContext.dbRecordId) {
+                        try {
+                            await InterviewSession.findByIdAndUpdate(userContext.dbRecordId, {
+                                $push: { history: {
+                                    question: userContext.currentQuestion,
+                                    answer: data.text,
+                                    score: evaluation.score,
+                                    evaluation: evaluation.feedback,
+                                    improvement: tips
+                                }}
+                            });
+                        } catch (dbUpdateErr) {
+                            console.error("⚠️ Failed to update session in MongoDB:", dbUpdateErr.message);
+                        }
+                    }
+
+                    // Send feedback back to UI [cite: 30]
                     ws.send(JSON.stringify({
-                        type: 'question',
-                        text: `Follow-up: ${nextQuestion}`
+                        type: 'feedback',
+                        score: evaluation.score,
+                        evaluation: evaluation.feedback,
+                        improvement: tips
                     }));
-                }, 2000);
-                break;
-        }
-    });
 
-    ws.on('close', () => {
-        console.log('Client disconnected');
+                    // Agent 1 generates next question after delay [cite: 43]
+                    setTimeout(() => {
+                        const nextQ = QuestionGeneratorAgent.generate(userContext.company, userContext.resumeName);
+                        userContext.currentQuestion = nextQ;
+                        ws.send(JSON.stringify({ type: 'question', text: nextQ }));
+                    }, 2000);
+                    break;
+            }
+        } catch (parseErr) {
+            console.error("❌ Error processing WebSocket message:", parseErr.message);
+        }
     });
 });
 
 server.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
+    console.log(`🚀 NextGen Server running on http://localhost:${PORT}`);
 });
