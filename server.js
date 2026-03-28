@@ -4,6 +4,8 @@ const WebSocket = require('ws');
 const path = require('path');
 const mongoose = require('mongoose');
 const multer = require('multer');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 const app = express();
 const server = http.createServer(app);
@@ -15,8 +17,94 @@ const upload = multer({ dest: 'uploads/' });
 const PORT = process.env.PORT || 3005;
 
 // Serve static files (HTML, CSS, JS) from the root directory
-app.use(express.static(path.join(__dirname)));
+app.use(express.static(__dirname));
 app.use(express.json());
+
+// --- ROUTES ---
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'login.html'));
+});
+
+app.get('/login', (req, res) => {
+    res.sendFile(path.join(__dirname, 'login.html'));
+});
+
+app.get('/signup', (req, res) => {
+    res.sendFile(path.join(__dirname, 'signup.html'));
+});
+
+app.get('/interview', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// --- AUTH ROUTES ---
+const JWT_SECRET = 'your-very-secret-key-123'; // In production, use process.env.JWT_SECRET
+
+app.post('/api/auth/signup', async (req, res) => {
+    try {
+        const { name, email, password } = req.body;
+        
+        // Check if user exists
+        const userExists = await User.findOne({ email });
+        if (userExists) {
+            return res.status(400).json({ error: "User already exists" });
+        }
+
+        // Hash password
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Create user
+        const newUser = new User({
+            name,
+            email,
+            password: hashedPassword
+        });
+
+        await newUser.save();
+
+        // Create token
+        const token = jwt.sign({ userId: newUser._id }, JWT_SECRET, { expiresIn: '7d' });
+
+        res.status(201).json({ 
+            message: "User created successfully", 
+            token,
+            user: { name: newUser.name, email: newUser.email }
+        });
+    } catch (err) {
+        console.error("Signup error:", err);
+        res.status(500).json({ error: "Error during signup" });
+    }
+});
+
+app.post('/api/auth/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+
+        // Find user
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(400).json({ error: "Invalid credentials" });
+        }
+
+        // Check password
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return res.status(400).json({ error: "Invalid credentials" });
+        }
+
+        // Create token
+        const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '7d' });
+
+        res.json({ 
+            message: "Login successful", 
+            token,
+            user: { name: user.name, email: user.email }
+        });
+    } catch (err) {
+        console.error("Login error:", err);
+        res.status(500).json({ error: "Error during login" });
+    }
+});
 
 // --- 1. MONGODB CONNECTION ---
 const connectDB = async () => {
@@ -51,6 +139,15 @@ const interviewSchema = new mongoose.Schema({
 });
 
 const InterviewSession = mongoose.model('InterviewSession', interviewSchema);
+
+// --- 2.1 USER SCHEMA ---
+const userSchema = new mongoose.Schema({
+    name: { type: String, required: true },
+    email: { type: String, required: true, unique: true },
+    password: { type: String, required: true }
+});
+
+const User = mongoose.model('User', userSchema);
 
 // --- 3. AI AGENTS (MULTI-AGENT SYSTEM) ---
 

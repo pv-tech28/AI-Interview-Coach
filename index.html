@@ -8,6 +8,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
+
+    <!-- 🔥 LOGOUT BUTTON -->
+    <button onclick="logout()" style="position:absolute; right:20px; top:20px;">Logout</button>
+
     <div class="app-container">
         <header class="app-header">
             <div class="logo">
@@ -28,6 +32,7 @@
                         <label for="companyInput">Target Company</label>
                         <input type="text" id="companyInput" placeholder="e.g. Google, Amazon, Microsoft">
                     </div>
+
                     <div class="input-group">
                         <label for="resumeInput">Upload Resume (PDF Only)</label>
                         <div class="file-upload" id="drop-zone">
@@ -36,14 +41,16 @@
                             <span id="file-name-display">Drag or click to upload resume</span>
                         </div>
                     </div>
+
                     <button id="startBtn" class="primary-btn">Start My Interview</button>
                 </div>
             </section>
 
-            <!-- Interview Area (Hidden by default) -->
+            <!-- Interview Area -->
             <section id="interview-section" class="hidden">
                 <div class="interview-layout">
-                    <!-- Chat Interface -->
+                    
+                    <!-- Chat -->
                     <div class="chat-card card">
                         <div class="card-header">
                             <h2><i class="fas fa-comments"></i> Live Interview</h2>
@@ -51,60 +58,91 @@
                                 <span class="dot"></span> Connected
                             </div>
                         </div>
-                        <div id="chat-box" class="chat-box">
-                            <!-- Messages will appear here -->
-                        </div>
+
+                        <div id="chat-box" class="chat-box"></div>
+
                         <div class="chat-controls">
                             <div class="input-container">
-                                <p id="input-instruction" class="input-instruction">Please speak first, then you can edit your answer</p>
-                                <textarea id="answerInput" placeholder="Speak to start..." rows="3" readonly></textarea>
-                                <div id="transcript-preview" class="transcript-preview hidden">
-                                    <span>Listening...</span>
+                                <p class="input-instruction">
+                                    Please speak first, then you can edit your answer
+                                </p>
+                                <textarea id="answerInput" rows="3" readonly></textarea>
+                                <div class="transcript-preview hidden">
+                                    Listening...
                                 </div>
                             </div>
+
                             <div class="button-row">
                                 <button id="recordBtn" class="record-btn">
                                     <i class="fas fa-microphone"></i>
-                                    <span>Hold to Speak</span>
+                                    Hold to Speak
                                 </button>
+
                                 <button id="editBtn" class="secondary-btn hidden">
-                                    <i class="fas fa-edit"></i>
-                                    <span>Edit Answer</span>
+                                    Edit Answer
                                 </button>
-                                <button id="submitBtn" class="primary-btn submit-btn hidden">
-                                    <i class="fas fa-paper-plane"></i>
-                                    <span>Submit Answer</span>
+
+                                <button id="submitBtn" class="primary-btn hidden">
+                                    Submit Answer
                                 </button>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Feedback Sidebar -->
+                    <!-- Feedback -->
                     <aside class="feedback-sidebar">
-                        <div class="card feedback-card">
-                            <h3><i class="fas fa-chart-line"></i> Real-time Feedback</h3>
-                            <div class="feedback-metrics">
-                                <div class="metric">
-                                    <span class="label">Confidence Score</span>
-                                    <div class="progress-bar">
-                                        <div id="score-fill" class="fill" style="width: 0%"></div>
-                                    </div>
-                                    <span id="score-text" class="value">0%</span>
+                        <div class="card">
+                            <h3>Real-time Feedback</h3>
+
+                            <div class="metric">
+                                Confidence Score
+                                <div class="progress-bar">
+                                    <div id="score-fill"></div>
                                 </div>
+                                <span id="score-text">0%</span>
                             </div>
-                            <div id="feedback-content" class="feedback-list">
-                                <p class="placeholder">Complete your first answer to see evaluation results.</p>
+
+                            <div id="feedback-content">
+                                Complete your first answer to see feedback
                             </div>
                         </div>
                     </aside>
+
                 </div>
             </section>
         </main>
 
         <footer class="app-footer">
-            <p>&copy; 2024 NextGen Coders | Built with Trae AI Multi-Agent System</p>
+            <p>© 2024 NextGen Coders</p>
         </footer>
     </div>
+
+    <!-- 🔥 AUTH CHECK -->
+    <script>
+    (function () {
+        // Only allow access if they JUST logged in or have a session
+        // If coming from a direct URL or refresh without a session, force login
+        const token = localStorage.getItem('token');
+        const sessionActive = sessionStorage.getItem('sessionActive');
+
+        if (!token || !sessionActive) {
+            // Clear token to prevent auto-login next time
+            localStorage.removeItem('token');
+            window.location.replace('/login');
+        }
+    })();
+    </script>
+
+    <!-- 🔥 LOGOUT FUNCTION -->
+    <script>
+    function logout() {
+        localStorage.removeItem('token');
+        sessionStorage.removeItem('sessionActive');
+        window.location.href = '/login';
+    }
+    </script>
+
     <script src="script.js"></script>
+
 </body>
 </html>
