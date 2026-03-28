@@ -3,17 +3,84 @@ const http = require('http');
 const WebSocket = require('ws');
 const path = require('path');
 const mongoose = require('mongoose');
+const multer = require('multer');
 
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
+// Multer setup for file uploads
+const upload = multer({ dest: 'uploads/' });
+
 const PORT = process.env.PORT || 3000;
 
-// Serve static files (HTML, CSS, JS) from the root directory [cite: 35, 38]
+// Serve static files (HTML, CSS, JS) from the root directory
 app.use(express.static(path.join(__dirname)));
+app.use(express.json());
 
-// --- 1. MONGODB CONNECTION [cite: 42] ---
+// --- Mocking @resume-skill-mapper and @interviewer-pro ---
+const resumeSkillMapper = {
+    process: async (filePath) => {
+        // Simulating @resume-skill-mapper processing
+        console.log(`Processing file: ${filePath}`);
+        return {
+            skills: ['JavaScript', 'React', 'Node.js', 'MongoDB', 'AI'],
+            experience: 'Senior Software Engineer',
+            education: 'BS in Computer Science'
+        };
+    }
+};
+
+const interviewerPro = {
+    generateQuestions: async (data) => {
+        // Simulating @interviewer-pro question generation
+        return [
+            `Based on your experience as a ${data.experience}, how do you approach scaling Node.js applications?`,
+            `Your skills include ${data.skills.join(', ')}. Can you explain a complex problem you solved using ${data.skills[0]}?`,
+            `How have you integrated AI into your recent projects, given your background in ${data.education}?`
+        ];
+    }
+};
+
+// --- API Route for Resume Analysis ---
+app.post('/api/interview/analyze', upload.single('resume'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No resume file uploaded' });
+        }
+
+        const company = req.body.company || 'Unknown Company';
+        
+        // Step 1: Process file with @resume-skill-mapper
+        const processedData = await resumeSkillMapper.process(req.file.path);
+        
+        // Step 2: Generate questions with @interviewer-pro
+        const questions = await interviewerPro.generateQuestions({
+            ...processedData,
+            company
+        });
+
+        // Step 3: Create a new MongoDB session
+        const newSession = new InterviewSession({
+            company,
+            resumeName: req.file.originalname,
+            history: [] // Initially empty, history will be filled via WebSocket
+        });
+        const savedSession = await newSession.save();
+
+        res.json({
+            sessionId: savedSession._id,
+            questions,
+            skills: processedData.skills
+        });
+
+    } catch (error) {
+        console.error('Error in /api/interview/analyze:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// --- 1. MONGODB CONNECTION ---
 // Connects to a local database named 'interview_coach'
 const connectDB = async () => {
     try {
