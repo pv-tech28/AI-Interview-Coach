@@ -1,4 +1,3 @@
-
 const setupSection = document.getElementById('setup-section');
 const interviewSection = document.getElementById('interview-section');
 const startBtn = document.getElementById('startBtn');
@@ -21,220 +20,79 @@ let socket;
 let recognition;
 let isRecording = false;
 let selectedFile = null;
-let originalSpeechText = ''; // Track original speech for evaluation
+let originalSpeechText = '';
 
-// Resume Upload Handling
+/* ================= FILE UPLOAD ================= */
+
 function handleFileSelect(file) {
     if (file && file.type === 'application/pdf') {
         selectedFile = file;
         fileNameDisplay.innerText = file.name;
-        fileNameDisplay.style.fontWeight = 'bold';
-        fileNameDisplay.style.color = 'var(--accent-color)';
     } else if (file) {
-        alert('Please upload a PDF file.');
-        resetFileUpload();
+        alert('Upload PDF only');
     }
 }
 
-function resetFileUpload() {
-    selectedFile = null;
-    resumeInput.value = '';
-    fileNameDisplay.innerText = 'Drag or click to upload resume';
-    fileNameDisplay.style.fontWeight = 'normal';
-    fileNameDisplay.style.color = '';
-}
-
-resumeInput.onchange = (e) => {
-    handleFileSelect(e.target.files[0]);
-};
-
-// Drag and Drop Handling
-dropZone.ondragover = (e) => {
-    e.preventDefault();
-    dropZone.style.borderColor = 'var(--accent-color)';
-    dropZone.style.background = 'rgba(88, 166, 255, 0.1)';
-};
-
-dropZone.ondragleave = (e) => {
-    e.preventDefault();
-    dropZone.style.borderColor = '';
-    dropZone.style.background = '';
-};
+resumeInput.onchange = (e) => handleFileSelect(e.target.files[0]);
 
 dropZone.ondrop = (e) => {
     e.preventDefault();
-    dropZone.style.borderColor = '';
-    dropZone.style.background = '';
-    const file = e.dataTransfer.files[0];
-    handleFileSelect(file);
+    handleFileSelect(e.dataTransfer.files[0]);
 };
 
-// Initialize WebSocket
+/* ================= WEBSOCKET ================= */
+
 function initWebSocket() {
     socket = new WebSocket(`ws://${window.location.hostname}:3005`);
 
     socket.onopen = () => {
-        console.log('Connected to server');
-        // Send initial setup data
-        const setupData = {
+        socket.send(JSON.stringify({
             type: 'setup',
-            company: companyInput.value || 'General',
-            resumeName: selectedFile ? selectedFile.name : 'No resume uploaded'
-        };
-        socket.send(JSON.stringify(setupData));
+            company: companyInput.value,
+            resumeName: selectedFile ? selectedFile.name : ''
+        }));
     };
 
     socket.onmessage = (event) => {
         const data = JSON.parse(event.data);
-        handleServerMessage(data);
-    };
-
-    socket.onclose = () => {
-        console.log('Disconnected from server');
-        addMessage('Connection lost. Please refresh the page.', 'bot');
+        if (data.type === 'question') addMessage(data.text, 'bot');
+        if (data.type === 'feedback') updateFeedbackUI(data);
     };
 }
 
-// Handle messages from server
-function handleServerMessage(data) {
-    switch (data.type) {
-        case 'question':
-            addMessage(data.text, 'bot');
-            break;
-        case 'feedback':
-            updateFeedbackUI(data);
-            break;
-        case 'info':
-            console.log('Server Info:', data.text);
-            break;
-    }
-}
+/* ================= UI ================= */
 
-// UI Functions
 function addMessage(text, sender) {
-    const msgDiv = document.createElement('div');
-    msgDiv.className = `message ${sender}`;
-    msgDiv.innerText = text;
-    chatBox.appendChild(msgDiv);
-    chatBox.scrollTop = chatBox.scrollHeight;
+    const msg = document.createElement('div');
+    msg.className = `message ${sender}`;
+    msg.innerText = text;
+    chatBox.appendChild(msg);
 }
 
 function updateFeedbackUI(data) {
-    // Update Overall Score
-    if (data.score !== undefined) {
-        scoreFill.style.width = `${data.score}%`;
-        scoreText.innerText = `${data.score}%`;
-    }
-
-    // Update Feedback List
-    feedbackContent.innerHTML = ''; // Clear previous feedback
-    
-    // 0. Critic's Verdict (Confidence Score Reason)
-    if (data.scoreReason) {
-        const scoreDiv = document.createElement('div');
-        scoreDiv.className = 'feedback-item score-reason-feedback';
-        scoreDiv.innerHTML = `
-            <h4><i class="fas fa-exclamation-triangle"></i> Critic's Verdict</h4>
-            <p><strong>${data.scoreReason}</strong></p>
-        `;
-        feedbackContent.appendChild(scoreDiv);
-    }
-
-    // 1. Relevance Check (The "Why" Test)
-    if (data.relevance) {
-        const relevanceDiv = document.createElement('div');
-        relevanceDiv.className = 'feedback-item relevance-feedback';
-        relevanceDiv.innerHTML = `
-            <h4><i class="fas fa-chart-line"></i> 1. The "Why" Test (Impact)</h4>
-            <p><em>"${data.relevance}"</em></p>
-        `;
-        feedbackContent.appendChild(relevanceDiv);
-    }
-
-    // 2. Grammatical & Structural Audit (The Nitpicker)
-    const auditDiv = document.createElement('div');
-    auditDiv.className = 'feedback-item audit-feedback';
-    let auditHTML = `<h4><i class="fas fa-search-plus"></i> 2. The Nitpicker Audit</h4>`;
-    
-    if (data.audit.mistakes && data.audit.mistakes.length > 0) {
-        auditHTML += `<div class="audit-section"><h5>Flaws Detected:</h5>`;
-        data.audit.mistakes.forEach((m) => {
-            auditHTML += `
-                <div class="grammar-pair">
-                    <p class="incorrect"><span>Flaw:</span> ${m.incorrect}</p>
-                    <p class="corrected"><span>Requirement:</span> ${m.corrected}</p>
-                    <p class="reason"><span>Critic's Note:</span> ${m.reason}</p>
-                </div>`;
-        });
-        auditHTML += `</div>`;
-    }
-
-    if (data.audit.weakWords && data.audit.weakWords.length > 0) {
-        auditHTML += `<div class="audit-section"><h5>Weak/Lazy Vocabulary:</h5>`;
-        data.audit.weakWords.forEach(w => {
-            auditHTML += `
-                <div class="weak-word-item">
-                    <p class="weak-word">Avoid: "<strong>${w.word}</strong>"</p>
-                    <p class="synonyms">Elite Synonyms: ${w.synonyms.map(s => `<em>${s}</em>`).join(', ')}</p>
-                </div>`;
-        });
-        auditHTML += `</div>`;
-    }
-
-    if (data.audit.fillers && data.audit.fillers.length > 0) {
-        auditHTML += `<div class="audit-section"><h5>Filler Word Analysis:</h5>`;
-        data.audit.fillers.forEach(f => {
-            auditHTML += `<p class="filler-info">Used "<strong>${f.word}</strong>" ${f.count} time(s). Replace with a strategic pause.</p>`;
-        });
-        auditHTML += `</div>`;
-    }
-    
-    if (auditHTML === `<h4><i class="fas fa-search-plus"></i> 2. The Nitpicker Audit</h4>`) {
-        auditHTML += `<p class="corrected">No immediate flaws detected. Rare.</p>`;
-    }
-    
-    auditDiv.innerHTML = auditHTML;
-    feedbackContent.appendChild(auditDiv);
-
-    // 3. The "Gold Standard" Response Section
-    const modelDiv = document.createElement('div');
-    modelDiv.className = 'feedback-item model-feedback';
-    modelDiv.innerHTML = `
-        <h4><i class="fas fa-award"></i> 3. The "Gold Standard"</h4>
-        <div class="model-answer-box">
-            <p class="model-text">${data.modelAnswer}</p>
-        </div>
-    `;
-    feedbackContent.appendChild(modelDiv);
-
-    // 4. Real-World Context Section
-    const contextDiv = document.createElement('div');
-    contextDiv.className = 'feedback-item context-feedback';
-    contextDiv.innerHTML = `
-        <h4><i class="fas fa-fingerprint"></i> 4. Company DNA</h4>
-        <p class="context-text">${data.companyContext}</p>
-    `;
-    feedbackContent.appendChild(contextDiv);
+    scoreFill.style.width = `${data.score}%`;
+    scoreText.innerText = `${data.score}%`;
 }
 
-// Start Interview
+/* ================= START ================= */
+
 startBtn.onclick = () => {
-    if (!companyInput.value) {
-        alert('Please enter a target company name.');
-        return;
-    }
-    
     setupSection.classList.add('hidden');
     interviewSection.classList.remove('hidden');
     initWebSocket();
 };
 
-// Voice Recognition Setup
+/* ================= 🎤 VOICE FIX ================= */
+
+/* ================= 🎤 VOICE FIX (Merged & Optimized) ================= */
+
 if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     recognition = new SpeechRecognition();
+
     recognition.continuous = true;
-    recognition.interimResults = true;
+    recognition.interimResults = true; // Crucial for "Real-time" feel
+    recognition.lang = 'en-US';
 
     recognition.onresult = (event) => {
         let interimTranscript = '';
@@ -248,60 +106,43 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             }
         }
 
-        // Auto-fill the textarea with the transcription and track original
-        if (finalTranscript) {
-            originalSpeechText += (originalSpeechText ? ' ' : '') + finalTranscript;
-            answerInput.value = originalSpeechText;
+        // 🌟 FIX: Put speech directly into the Textarea so it's editable
+        // We use || to show whatever is available (Final or Interim)
+        const currentText = finalTranscript || interimTranscript;
+        if (currentText) {
+            answerInput.value = currentText;
+            answerInput.readOnly = false; // 🔓 Allow user to click and edit
             
-            // Show action buttons after speech is captured
-            editBtn.classList.remove('hidden');
+            // Show buttons
             submitBtn.classList.remove('hidden');
             inputInstruction.innerText = "Speech captured! You can now edit or submit.";
         }
-        
-        transcriptPreview.classList.remove('hidden');
-        transcriptPreview.querySelector('span').innerText = interimTranscript || 'Listening...';
     };
 
     recognition.onerror = (event) => {
         console.error('Speech recognition error:', event.error);
         stopRecording();
-        
-        let errorMessage = 'Voice error. Please try again.';
-        if (event.error === 'not-allowed') {
-            errorMessage = 'Microphone access denied. Please allow it in browser settings.';
-        } else if (event.error === 'no-speech') {
-            errorMessage = 'No speech detected. Please speak into the mic.';
-        } else if (event.error === 'network') {
-            errorMessage = 'Network error during speech recognition.';
-        }
-        
-        transcriptPreview.querySelector('span').innerText = errorMessage;
-        transcriptPreview.classList.remove('hidden');
-        transcriptPreview.style.color = '#da3633'; // Error color
-        
-        setTimeout(() => {
-            transcriptPreview.classList.add('hidden');
-            transcriptPreview.style.color = ''; // Reset color
-        }, 4000);
     };
+
+} else {
+    alert("Speech recognition is not supported in this browser. Please use Chrome.");
 }
 
-function startRecording() {
-    if (!recognition) {
-        alert("Speech recognition is not supported in this browser. Please use Chrome or Edge.");
-        return;
-    }
+/* ================= RECORDING FLOW ================= */
+
+function startRecording(e) {
+    if (e) e.preventDefault();
+    if (!recognition || isRecording) return;
+
+    isRecording = true;
+    answerInput.value = '';
+    answerInput.placeholder = "Listening...";
     
-    // Clear previous error state
-    transcriptPreview.style.color = '';
-    transcriptPreview.querySelector('span').innerText = 'Listening...';
-    
+    recordBtn.classList.add('recording');
+    const span = recordBtn.querySelector('span');
+    if (span) span.innerText = 'Recording...';
+
     try {
-        isRecording = true;
-        recordBtn.classList.add('recording');
-        recordBtn.querySelector('span').innerText = 'Recording...';
-        transcriptPreview.classList.remove('hidden');
         recognition.start();
     } catch (err) {
         console.error("Start recording failed:", err);
@@ -309,50 +150,50 @@ function startRecording() {
     }
 }
 
-function stopRecording() {
-    if (!recognition) return;
+function stopRecording(e) {
+    if (e) e.preventDefault();
+    if (!isRecording) return;
+
     isRecording = false;
     recordBtn.classList.remove('recording');
-    recordBtn.querySelector('span').innerText = 'Hold to Speak';
-    transcriptPreview.classList.add('hidden');
-    recognition.stop();
+    const span = recordBtn.querySelector('span');
+    if (span) span.innerText = 'Hold to Speak';
+
+    try {
+        recognition.stop();
+        answerInput.placeholder = "Edit your answer here...";
+    } catch (err) {
+        console.error("Stop recording failed:", err);
+    }
 }
 
-// Record Button Events
+// Standard Events (Mouse & Touch)
 recordBtn.onmousedown = startRecording;
 recordBtn.onmouseup = stopRecording;
-recordBtn.ontouchstart = (e) => { e.preventDefault(); startRecording(); };
-recordBtn.ontouchend = (e) => { e.preventDefault(); stopRecording(); };
+recordBtn.onmouseleave = stopRecording; // Safety if mouse leaves button
 
-// Edit Button Logic
-editBtn.onclick = () => {
-    answerInput.readOnly = false;
-    answerInput.focus();
-    inputInstruction.innerText = "Editing your response... Correct any mistakes before submitting.";
-    editBtn.classList.add('hidden'); // Hide edit button while editing
-};
+recordBtn.ontouchstart = (e) => { e.preventDefault(); startRecording(e); };
+recordBtn.ontouchend = (e) => { e.preventDefault(); stopRecording(e); };
 
-// Submit Answer
+/* ================= SUBMIT ANSWER ================= */
+
 submitBtn.onclick = () => {
-    const editedText = answerInput.value.trim();
-    if (editedText || originalSpeechText) {
-        addMessage(editedText || originalSpeechText, 'user');
-        socket.send(JSON.stringify({
-            type: 'answer',
-            originalText: originalSpeechText,
-            editedText: editedText
-        }));
-        
-        // Reset Input UI
-        resetInputUI();
-    }
-};
+    const text = answerInput.value.trim();
+    if (!text) return;
 
-function resetInputUI() {
+    // Send final text to the @interviewer-pro agent
+    addMessage(text, 'user');
+
+    socket.send(JSON.stringify({
+        type: 'answer',
+        originalText: originalSpeechText || text,
+        editedText: text
+    }));
+
+    // Reset UI
     answerInput.value = '';
-    answerInput.readOnly = true;
     originalSpeechText = '';
-    editBtn.classList.add('hidden');
+    answerInput.readOnly = true;
     submitBtn.classList.add('hidden');
-    inputInstruction.innerText = "Please speak first, then you can edit your answer";
-}
+    inputInstruction.innerText = "Hold to Speak to provide your answer.";
+};
