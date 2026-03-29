@@ -21,6 +21,9 @@ let recognition;
 let isRecording = false;
 let selectedFile = null;
 let originalSpeechText = '';
+let currentQuestion = ''; // 🌟 NEW: Track current question
+let lastUserAnswer = ''; // 🌟 NEW: Track last submitted answer
+let feedbackHistory = JSON.parse(localStorage.getItem('feedbackHistory') || '[]'); // 🌟 NEW: Client-side history storage
 
 /* ================= FILE UPLOAD ================= */
 
@@ -55,9 +58,65 @@ function initWebSocket() {
 
     socket.onmessage = (event) => {
         const data = JSON.parse(event.data);
-        if (data.type === 'question') addMessage(data.text, 'bot');
-        if (data.type === 'feedback') updateFeedbackUI(data);
+        if (data.type === 'question') {
+            currentQuestion = data.text; // 🌟 CAPTURE QUESTION TEXT
+            addMessage(data.text, 'bot');
+        }
+        if (data.type === 'feedback') {
+            updateFeedbackUI(data);
+            saveToHistory(data); // 🌟 NEW: SAVE TO HISTORY ON EACH FEEDBACK
+        }
     };
+}
+
+/* ================= HISTORY ================= */
+
+function saveToHistory(data) {
+    const historyEntry = {
+        id: Date.now(),
+        question: currentQuestion,
+        answer: lastUserAnswer,
+        score: data.score,
+        scoreReason: data.scoreReason,
+        audit: data.audit || { mistakes: [], weakWords: [], fillers: [] },
+        modelAnswer: data.modelAnswer || '',
+        companyContext: data.companyContext || ''
+    };
+
+    feedbackHistory.unshift(historyEntry);
+    localStorage.setItem('feedbackHistory', JSON.stringify(feedbackHistory));
+    renderHistoryList(0); // Highlight the newest one
+}
+
+function renderHistoryList(activeIndex = -1) {
+    const historyList = document.getElementById('history-list');
+    if (!historyList) return;
+
+    if (feedbackHistory.length === 0) {
+        historyList.innerHTML = '<p class="placeholder">No previous answers yet</p>';
+        return;
+    }
+
+    historyList.innerHTML = feedbackHistory.map((item, index) => `
+        <div class="history-item ${index === activeIndex ? 'active' : ''}" onclick="selectHistoryItem(${index})">
+            <div class="q-title">${item.question}</div>
+            <div class="meta">
+                <span class="score-pill">${item.score}%</span>
+                <span class="timestamp">${new Date(item.id).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+function selectHistoryItem(index) {
+    const item = feedbackHistory[index];
+    if (!item) return;
+
+    // Re-render feedback sidebar using historical data
+    updateFeedbackUI(item);
+    
+    // Highlight active in sidebar
+    renderHistoryList(index);
 }
 
 /* ================= UI ================= */
@@ -70,8 +129,75 @@ function addMessage(text, sender) {
 }
 
 function updateFeedbackUI(data) {
+    // 1. Update Score
     scoreFill.style.width = `${data.score}%`;
     scoreText.innerText = `${data.score}%`;
+
+    // 2. Build 4-Step Feedback UI
+    let feedbackHtml = '';
+
+    // STEP 1: Nitpicker Audit (Mistakes & Fillers)
+    const mistakes = data.audit?.mistakes || [];
+    const fillers = data.audit?.fillers || [];
+    feedbackHtml += `
+        <div class="feedback-item audit-feedback">
+            <h4><i class="fas fa-microscope"></i> Step 1: Nitpicker Audit</h4>
+            <div class="audit-section">
+                ${mistakes.length > 0 ? mistakes.map(m => `
+                    <div class="grammar-pair">
+                        <p class="incorrect"><span>Quote:</span> "${m.incorrect}"</p>
+                        <p class="corrected"><span>Fixed:</span> "${m.corrected}"</p>
+                        <p class="reason">${m.reason}</p>
+                    </div>
+                `).join('') : '<p class="success-text">No major grammatical or technical errors detected.</p>'}
+                
+                ${fillers.length > 0 ? `
+                    <div class="filler-info-container">
+                        <h5 style="font-size: 0.8rem; margin-top: 1rem; color: #8b949e;">FILLER WORD USAGE</h5>
+                        ${fillers.map(f => `
+                            <p class="filler-info">Found "${f.word}" (${f.count}x). Try replacing with: <strong>${f.replacement}</strong></p>
+                        `).join('')}
+                    </div>
+                ` : ''}
+            </div>
+        </div>
+    `;
+
+    // STEP 2: Vocabulary Upgrade (Weak Words)
+    const weakWords = data.audit?.weakWords || [];
+    feedbackHtml += `
+        <div class="feedback-item relevance-feedback">
+            <h4><i class="fas fa-arrow-up"></i> Step 2: Vocabulary Upgrade</h4>
+            <div class="audit-section">
+                ${weakWords.length > 0 ? weakWords.map(w => `
+                    <div class="weak-word-item">
+                        <p class="weak-word">Avoid: "${w.word}"</p>
+                        <p class="synonyms">Elite alternatives: ${w.synonyms.map(s => `<em>${s}</em>`).join(', ')}</p>
+                    </div>
+                `).join('') : '<p class="success-text">Excellent vocabulary choice.</p>'}
+            </div>
+        </div>
+    `;
+
+    // STEP 3: Gold Standard (STAR Method)
+    feedbackHtml += `
+        <div class="feedback-item model-feedback">
+            <h4><i class="fas fa-star"></i> Step 3: Gold Standard (STAR)</h4>
+            <div class="model-answer-box">
+                <p class="model-text">${data.modelAnswer || 'A model answer is being generated based on your input.'}</p>
+            </div>
+        </div>
+    `;
+
+    // STEP 4: Company DNA (Company Context)
+    feedbackHtml += `
+        <div class="feedback-item context-feedback">
+            <h4><i class="fas fa-building"></i> Step 4: Company DNA</h4>
+            <p class="context-text">${data.companyContext || `Insights for your target company are being retrieved.`}</p>
+        </div>
+    `;
+
+    feedbackContent.innerHTML = feedbackHtml;
 }
 
 /* ================= START ================= */
@@ -80,6 +206,7 @@ startBtn.onclick = () => {
     setupSection.classList.add('hidden');
     interviewSection.classList.remove('hidden');
     initWebSocket();
+    renderHistoryList(); // 🌟 LOAD HISTORY ON START
 };
 
 /* ================= 🎤 VOICE FIX ================= */
@@ -107,9 +234,9 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
         }
 
         // 🌟 FIX: Put speech directly into the Textarea so it's editable
-        // We use || to show whatever is available (Final or Interim)
         const currentText = finalTranscript || interimTranscript;
         if (currentText) {
+            originalSpeechText = currentText; // 🌟 CAPTURE RAW SPEECH FOR FILLER CHECK
             answerInput.value = currentText;
             answerInput.readOnly = false; // 🔓 Allow user to click and edit
             
@@ -175,25 +302,21 @@ recordBtn.onmouseleave = stopRecording; // Safety if mouse leaves button
 recordBtn.ontouchstart = (e) => { e.preventDefault(); startRecording(e); };
 recordBtn.ontouchend = (e) => { e.preventDefault(); stopRecording(e); };
 
-/* ================= SUBMIT ANSWER ================= */
+/* ================= SUBMIT ================= */
 
 submitBtn.onclick = () => {
-    const text = answerInput.value.trim();
-    if (!text) return;
+    const text = answerInput.value;
+    lastUserAnswer = text; // 🌟 CAPTURE ANSWER FOR HISTORY
 
-    // Send final text to the @interviewer-pro agent
     addMessage(text, 'user');
 
     socket.send(JSON.stringify({
         type: 'answer',
-        originalText: originalSpeechText || text,
+        originalText: originalSpeechText,
         editedText: text
     }));
 
-    // Reset UI
     answerInput.value = '';
-    originalSpeechText = '';
-    answerInput.readOnly = true;
+    editBtn.classList.add('hidden');
     submitBtn.classList.add('hidden');
-    inputInstruction.innerText = "Hold to Speak to provide your answer.";
 };
