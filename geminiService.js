@@ -1,7 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // 1. API Key Setup
-const genAI = new GoogleGenerativeAI("AIzaSyBXay3gKLp3WKlBCVEt4jWqmqRiYiOJEEI");
 
 export async function getCompanyData(companyName) {
    
